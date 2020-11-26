@@ -1,2 +1,5 @@
 django
 django-dynamic-preferences
+lxml
+m2crypto
+pychromepdf
