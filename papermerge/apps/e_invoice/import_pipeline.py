@@ -7,6 +7,7 @@ from magic import from_file
 from M2Crypto import BIO, SMIME, X509
 from lxml import etree
 from pychromepdf import ChromePDF
+from email.message import Message
 
 from django.core.exceptions import ValidationError
 from django.core.files.temp import NamedTemporaryFile
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 # 3 types of import_pipelines
 WEB = "WEB"
 IMAP = "IMAP"
-LOCAL = "LOCAl"
+LOCAL = "LOCAL"
 
 PATH_TO_CHROME_EXE = getattr(settings, 'E_INVOICE_CHROME_EXE',
                             '/usr/bin/google-chrome-stable')
@@ -88,8 +89,6 @@ class P7MPipeline(DefaultPipeline):
         *args,
         **kwargs
     ):
-        if self.processor == IMAP:
-            self.write_temp()
         if not self.check_mimetype():
             logger.debug(
                 "{} importer: invalid filetype".format(self.processor)
@@ -136,38 +135,6 @@ class P7MPipeline(DefaultPipeline):
         }
 
 class XMLPipeline(DefaultPipeline):
-    def __init__(
-        self,
-        payload,
-        doc=None,
-        processor=WEB,
-            *args,
-            **kwargs
-    ):
-        if payload is None:
-            return None
-        if processor == IMAP:
-            try:
-                payload = payload.get_payload(decode=True)
-                if payload is None:
-                    logger.debug("{} importer: not a file.".format(processor))
-                    raise TypeError("Not a file.")
-                self.payload = payload
-            except TypeError as e:
-                logger.debug("{} importer: not a file.".format(processor))
-                raise e
-        else:
-            self.tempfile = payload
-
-        if doc is not None:
-            self.temppath = self.tempfile.name
-        elif processor == WEB:
-            self.temppath = self.tempfile.temporary_file_path()
-
-        self.processor = processor
-        self.doc = doc
-        self.name = None
-
     def get_init_kwargs(self):
         if self.doc:
             return {'doc': self.doc, 'payload': self.newfile}
@@ -179,7 +146,6 @@ class XMLPipeline(DefaultPipeline):
                 name = str(Path(self.name).with_suffix('.pdf'))
             else:
                 name = basename(self.tempfile.name)
-            print(name)
             return {'doc': self.doc, 'create_document': False, 'name': name}
         return None
 
@@ -224,8 +190,6 @@ class XMLPipeline(DefaultPipeline):
         *args,
         **kwargs
     ):
-        if self.processor == IMAP:
-            self.write_temp()
         if not self.check_mimetype():
             logger.debug(
                 "{} importer: invalid filetype".format(self.processor)
